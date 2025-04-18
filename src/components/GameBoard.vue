@@ -39,11 +39,24 @@
     <!-- combo 动画 -->
     <div v-if="comboText" class="combo-text">{{ comboText }}</div>
 
-    <!-- 游戏结束提示 -->
-    <div v-if="gameOver" class="game-over">游戏结束！</div>
+    <!-- 游戏结束遮罩 -->
+    <div v-if="gameOver" class="game-over-overlay">
+      <div class="game-over-content">
+        <div class="game-over">很遗憾！游戏结束！</div>
+        <button @click="restartGame">重新开始</button>
+      </div>
+    </div>
 
-    <!-- 重新开始按钮 -->
-    <button v-if="gameOver" @click="restartGame">重新开始</button>
+    <!-- 分数排行榜 -->
+    <div class="leaderboard">
+      <h3>分数排行榜</h3>
+      <ul>
+        <li v-for="(entry, index) in leaderboard" :key="index">
+          <span class="time">{{ entry.time }}</span>
+          <span class="score">{{ entry.score }} 分</span>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -64,9 +77,10 @@ const board = ref([])
 const matched = ref([])
 const fallingMap = ref([])
 const score = ref(0)
-const timeLeft = ref(120)
+const timeLeft = ref(60)
 const gameOver = ref(false)
 const comboText = ref('')
+const leaderboard = ref([]) // 分数排行榜
 let comboCount = 0
 
 const dragging = ref(false)
@@ -88,6 +102,7 @@ const initBoard = () => {
 
 const restartGame = () => {
   clearInterval(timer)
+  saveScoreToLeaderboard() // 保存分数到排行榜
   score.value = 0
   timeLeft.value = 60
   gameOver.value = false
@@ -95,6 +110,23 @@ const restartGame = () => {
   initBoard()
   processBoard()
   startTimer()
+}
+
+/* -------------------------- 分数排行榜逻辑 -------------------------- */
+const saveScoreToLeaderboard = () => {
+  const now = new Date()
+  const formattedTime = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const newEntry = { time: formattedTime, score: score.value }
+  const storedLeaderboard = JSON.parse(localStorage.getItem('leaderboard')) || []
+  storedLeaderboard.push(newEntry)
+  storedLeaderboard.sort((a, b) => b.score - a.score) // 按分数降序排序
+  storedLeaderboard.splice(10) // 只保留前 10 名
+  localStorage.setItem('leaderboard', JSON.stringify(storedLeaderboard))
+  leaderboard.value = storedLeaderboard
+}
+
+const loadLeaderboard = () => {
+  leaderboard.value = JSON.parse(localStorage.getItem('leaderboard')) || []
 }
 
 /* -------------------------- 定时器 -------------------------- */
@@ -320,6 +352,7 @@ onMounted(() => {
   initBoard()
   processBoard()
   startTimer()
+  loadLeaderboard() // 加载排行榜
 })
 </script>
 
@@ -391,20 +424,6 @@ onMounted(() => {
   @keyframes blink {
     from { opacity: 1; }
     to { opacity: 0.3; }
-  }
-  
-  /* 游戏结束提示 */
-  .game-over {
-    text-align: center;
-    font-size: 28px; /* 增大字体 */
-    color: #fff;
-    font-weight: bold;
-    margin: 20px 0;
-    padding: 10px 20px;
-    background: #e74c3c;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    animation: fade-in 0.8s ease; /* 添加淡入动画 */
   }
   
   @keyframes fade-in {
@@ -524,27 +543,142 @@ onMounted(() => {
     40% { transform: translateX(-50%) scale(1.2); opacity: 1; }
     100% { transform: translateX(-50%) scale(1); opacity: 0; }
   }
-  
-  /* 重新开始按钮 */
-  button {
-    display: block;
-    margin: 16px auto;
-    padding: 12px 24px; /* 增加按钮的点击区域 */
-    font-size: 16px;
-    font-weight: bold; /* 加粗字体 */
-    background: linear-gradient(135deg, #2196f3, #42a5f5); /* 渐变背景 */
-    color: #fff;
-    border: none;
-    border-radius: 8px; /* 更圆润的边角 */
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 添加阴影 */
-    transition: all 0.3s ease;
+
+  /* 分数排行榜样式 */
+  .leaderboard {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-radius: 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .leaderboard:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .leaderboard h3 {
+    margin-bottom: 16px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .leaderboard ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .leaderboard li {
+    font-size: 18px;
+    padding: 10px 0;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease;
+  }
+
+  .leaderboard li:last-child {
+    border-bottom: none;
+  }
+
+  .leaderboard li:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .leaderboard li .time {
+    font-weight: bold;
+    color: #3498db;
+  }
+
+  .leaderboard li .score {
+    font-weight: bold;
+    color: #2ecc71;
   }
   
+  /* 游戏结束遮罩层 */
+  .game-over-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(50, 50, 50, 0.9)); /* 渐变背景 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* 确保遮罩层在最上方 */
+    animation: fadeIn 0.5s ease; /* 淡入动画 */
+  }
+
+  /* 游戏结束内容 */
+  .game-over-content {
+    text-align: center;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.2); /* 半透明背景 */
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* 添加阴影 */
+    animation: scaleUp 0.5s ease; /* 放大动画 */
+  }
+
+  .game-over {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 40px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* 添加文字阴影 */
+  }
+
+  /* 按钮样式 */
+  button {
+    padding: 14px 28px;
+    font-size: 20px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #42a5f5, #2196f3);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+  }
+
   button:hover {
-    background: linear-gradient(135deg, #1976d2, #2196f3); /* 悬停时的渐变效果 */
-    transform: translateY(-2px); /* 悬停时的轻微上移 */
-    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* 悬停时的阴影增强 */
+    background: linear-gradient(135deg, #1e88e5, #1976d2);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  button:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 动画效果 */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleUp {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
   
   /* 响应式适配 */
