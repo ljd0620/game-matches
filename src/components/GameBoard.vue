@@ -546,6 +546,7 @@ onMounted(() => {
 
   /* 分数排行榜样式 */
   .leaderboard {
+    min-height: 100px;
     margin-top: 20px;
     padding: 20px;
     background: linear-gradient(135deg, #f8f9fa, #e9ecef);
