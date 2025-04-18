@@ -68,7 +68,7 @@ const numRows = 6
 const numCols = 6
 const numColors = 5
 const colors = ['#f44336', '#2196f3', '#4caf50', '#ff9800', '#9c27b0']
-const symbols = ['🐹', '🐱', '🐨', '🐶', '🐰', '🦊', '🐯', '🐼', '🐭', '🐻']
+const symbols = ['🐹', '🐱', '🐼', '🐶', '🐰', '🦊', '🐯', '🐨', '🐭', '🐻']
 const BOMB = 'bomb'
 const RAINBOW = 'rainbow'
 const SPECIAL_CHANCE = 0.1
@@ -109,8 +109,10 @@ const restartGame = () => {
   gameOver.value = false
   comboText.value = ''
   initBoard()
-  processBoard()
   startTimer()
+  setTimeout(() => {
+    processBoard()
+  }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
 }
 
 /* -------------------------- 分数排行榜逻辑 -------------------------- */
@@ -354,6 +356,9 @@ onMounted(() => {
   initBoard()
   startTimer()
   loadLeaderboard() // 加载排行榜
+  setTimeout(() => {
+    processBoard()
+  }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
 })
 </script>
 
