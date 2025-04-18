@@ -68,6 +68,7 @@ const numRows = 6
 const numCols = 6
 const numColors = 5
 const colors = ['#f44336', '#2196f3', '#4caf50', '#ff9800', '#9c27b0']
+const symbols = ['🐹', '🐱', '🐰', '🐶', '🐯', '🦊', '🐭', '🐼', '🐨', '🐻']
 const BOMB = 'bomb'
 const RAINBOW = 'rainbow'
 const SPECIAL_CHANCE = 0.1
@@ -251,6 +252,7 @@ const processBoard = async () => {
     collapseBoard();
   }
   comboText.value = '';
+  console.log('得分:', score.value);
 }
 
 const hasMatch = (grid) => {
@@ -345,12 +347,11 @@ const randomCell = () => {
 const getCellColor = (cell) =>
   cell === BOMB ? '#555' : cell === RAINBOW ? '#ccc' : colors[cell]
 const getCellSymbol = (cell) =>
-  cell === BOMB ? '💣' : cell === RAINBOW ? '🌈' : ''
+  cell === BOMB ? '💣' : cell === RAINBOW ? '🌈' : symbols[cell]
 
 /* -------------------------- 挂载时初始化 -------------------------- */
 onMounted(() => {
   initBoard()
-  processBoard()
   startTimer()
   loadLeaderboard() // 加载排行榜
 })

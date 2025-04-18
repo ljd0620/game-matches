@@ -1,6 +1,6 @@
 <template>
   <div class="app">
-    <h1>🎮 欢乐消消乐</h1>
+    <h1>🎮萌宠消消乐</h1>
     <GameBoard />
   </div>
 </template>
