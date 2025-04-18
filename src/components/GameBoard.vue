@@ -117,7 +117,7 @@
     startTimer()
     setTimeout(() => {
       processBoard()
-    }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
+    }, 1000) // 延迟处理消除逻辑，确保棋盘渲染完成
   }
   
   /* -------------------------- 分数排行榜逻辑 -------------------------- */
@@ -473,7 +473,7 @@
     loadLeaderboard() // 加载排行榜
     setTimeout(() => {
       processBoard()
-    }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
+    }, 1000) // 延迟处理消除逻辑，确保棋盘渲染完成
   })
 </script>
 
@@ -599,7 +599,7 @@
   }
   
   .cell.exploding {
-    animation: explode 0.4s ease;
+    animation: explode 0.8s ease;
     opacity: 0.6;
   }
   
@@ -610,7 +610,7 @@
   }
   
   .cell.falling {
-    animation: fall 0.3s ease;
+    animation: fall 0.6s ease;
   }
   
   @keyframes fall {
@@ -655,7 +655,7 @@
     font-weight: bold;
     color: #ff9800;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-    animation: combo-bounce 0.8s ease;
+    animation: combo-bounce 1.2s ease;
     pointer-events: none;
   }
   
@@ -835,6 +835,142 @@
     button {
       padding: 16px 32px; /* 增大按钮的点击区域 */
       font-size: 18px;
+    }
+  }
+
+  /* 优化爆炸动画 */
+  @keyframes explode {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    30% {
+      transform: scale(1.4);
+      opacity: 0.8;
+    }
+    70% {
+      transform: scale(0.9);
+      opacity: 0.5;
+    }
+    100% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+  }
+
+  /* 优化下落动画 */
+  @keyframes fall {
+    0% {
+      transform: translateY(-60px);
+      opacity: 0;
+    }
+    50% {
+      transform: translateY(-20px);
+      opacity: 0.8;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* 优化彩虹方块动画 */
+  @keyframes rainbow-glow {
+    0% {
+      box-shadow: 0 0 5px red;
+    }
+    25% {
+      box-shadow: 0 0 10px orange;
+    }
+    50% {
+      box-shadow: 0 0 15px yellow;
+    }
+    75% {
+      box-shadow: 0 0 10px green;
+    }
+    100% {
+      box-shadow: 0 0 5px blue;
+    }
+  }
+
+  /* 优化炸弹方块动画 */
+  @keyframes bomb-glow {
+    0% {
+      box-shadow: 0 0 5px #ff0000;
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 15px #ff4500;
+      transform: scale(1.1);
+    }
+    100% {
+      box-shadow: 0 0 5px #ff0000;
+      transform: scale(1);
+    }
+  }
+
+  /* 优化连击提示动画 */
+  @keyframes combo-bounce {
+    0% {
+      transform: translateX(-50%) scale(1);
+      opacity: 0;
+    }
+    30% {
+      transform: translateX(-50%) scale(1.3);
+      opacity: 1;
+    }
+    70% {
+      transform: translateX(-50%) scale(1.1);
+      opacity: 0.8;
+    }
+    100% {
+      transform: translateX(-50%) scale(1);
+      opacity: 0;
+    }
+  }
+
+  /* 优化淡入动画 */
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* 优化放大动画 */
+  @keyframes scaleUp {
+    0% {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* 优化闪烁动画 */
+  @keyframes blink {
+    0% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+    100% {
+      opacity: 1;
     }
   }
 </style>
