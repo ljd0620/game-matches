@@ -61,305 +61,420 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
-
-/* -------------------------- 常量定义 -------------------------- */
-const numRows = 6
-const numCols = 6
-const numColors = 5
-const colors = ['#f44336', '#2196f3', '#4caf50', '#ff9800', '#9c27b0']
-const symbols = ['🐹', '🐱', '🐼', '🐶', '🐰', '🦊', '🐯', '🐨', '🐭', '🐻']
-const BOMB = 'bomb'
-const RAINBOW = 'rainbow'
-const SPECIAL_CHANCE = 0.1
-
-/* -------------------------- 状态变量 -------------------------- */
-const board = ref([])
-const matched = ref([])
-const fallingMap = ref([])
-const score = ref(0)
-const timeLeft = ref(60)
-const gameOver = ref(false)
-const comboText = ref('')
-const leaderboard = ref([]) // 分数排行榜
-let comboCount = 0
-
-const dragging = ref(false)
-const dragStart = ref(null)
-const dragOffset = ref({ x: 0, y: 0 })
-const touchStartPoint = ref(null)
-
-/* -------------------------- 初始化 -------------------------- */
-const initBoard = () => {
-  do {
-    // 生成随机棋盘
-    board.value = Array.from({ length: numRows }, () =>
-      Array.from({ length: numCols }, () => randomCell())
-    );
-    matched.value = Array.from({ length: numRows }, () => Array(numCols).fill(false));
-    fallingMap.value = Array.from({ length: numRows }, () => Array(numCols).fill(false));
-  } while (!findMatches()); // 如果没有匹配的方块，重新生成棋盘
-};
-
-const restartGame = () => {
-  clearInterval(timer)
-  saveScoreToLeaderboard() // 保存分数到排行榜
-  score.value = 0
-  timeLeft.value = 60
-  gameOver.value = false
-  comboText.value = ''
-  initBoard()
-  startTimer()
-  setTimeout(() => {
-    processBoard()
-  }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
-}
-
-/* -------------------------- 分数排行榜逻辑 -------------------------- */
-const saveScoreToLeaderboard = () => {
-  const now = new Date()
-  const formattedTime = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  const newEntry = { time: formattedTime, score: score.value }
-  const storedLeaderboard = JSON.parse(localStorage.getItem('leaderboard')) || []
-  storedLeaderboard.push(newEntry)
-  storedLeaderboard.sort((a, b) => b.score - a.score) // 按分数降序排序
-  storedLeaderboard.splice(10) // 只保留前 10 名
-  localStorage.setItem('leaderboard', JSON.stringify(storedLeaderboard))
-  leaderboard.value = storedLeaderboard
-}
-
-const loadLeaderboard = () => {
-  leaderboard.value = JSON.parse(localStorage.getItem('leaderboard')) || []
-}
-
-/* -------------------------- 定时器 -------------------------- */
-let timer = null
-const startTimer = () => {
-  timer = setInterval(() => {
-    if (timeLeft.value > 0) timeLeft.value--
-    else {
-      clearInterval(timer)
-      gameOver.value = true
-    }
-  }, 1000)
-}
-
-/* -------------------------- 消除逻辑 -------------------------- */
-const isBomb = (cell) => cell === BOMB
-const isRainbow = (cell) => cell === RAINBOW
-
-const getAdjacentColor = (r, c) => {
-  const dirs = [
-    [-1, 0], [1, 0], [0, -1], [0, 1] // 上、下、左、右
-  ];
-  for (const [dr, dc] of dirs) {
-    const nr = r + dr, nc = c + dc;
-    if (nr >= 0 && nr < numRows && nc >= 0 && nc < numCols) {
-      const cell = board.value[nr][nc];
-      if (typeof cell === 'number') return cell; // 返回相邻的颜色
-    }
+  import { ref, onMounted, nextTick } from 'vue'
+  
+  /* -------------------------- 常量定义 -------------------------- */
+  const numRows = 6 // 棋盘行数
+  const numCols = 6 // 棋盘列数
+  const numColors = 5 // 方块颜色种类数
+  const colors = ['#f44336', '#2196f3', '#4caf50', '#ff9800', '#9c27b0'] // 方块颜色
+  const symbols = ['🐹', '🐱', '🐼', '🐶', '🐰', '🦊', '🐯', '🐨', '🐭', '🐻'] // 方块符号
+  const BOMB = 'bomb' // 炸弹类型
+  const RAINBOW = 'rainbow' // 彩虹类型
+  const SPECIAL_CHANCE = 0.1 // 特殊方块生成概率
+  
+  /* -------------------------- 状态变量 -------------------------- */
+  const board = ref([]) // 棋盘数据
+  const matched = ref([]) // 匹配状态
+  const fallingMap = ref([]) // 下落状态
+  const score = ref(0) // 当前得分
+  const timeLeft = ref(60) // 剩余时间
+  const gameOver = ref(false) // 游戏结束状态
+  const comboText = ref('') // 连击提示文本
+  const leaderboard = ref([]) // 分数排行榜
+  let comboCount = 0 // 连击计数
+  
+  const dragging = ref(false) // 是否正在拖拽
+  const dragStart = ref(null) // 拖拽起始位置
+  const dragOffset = ref({ x: 0, y: 0 }) // 拖拽偏移量
+  const touchStartPoint = ref(null) // 触控起始点
+  
+  /* -------------------------- 初始化 -------------------------- */
+  /**
+   * 初始化棋盘，生成随机棋盘数据，确保有可匹配的方块
+   */
+  const initBoard = () => {
+    do {
+      board.value = Array.from({ length: numRows }, () =>
+        Array.from({ length: numCols }, () => randomCell())
+      )
+      matched.value = Array.from({ length: numRows }, () => Array(numCols).fill(false))
+      fallingMap.value = Array.from({ length: numRows }, () => Array(numCols).fill(false))
+    } while (!findMatches()) // 如果没有匹配的方块，重新生成棋盘
   }
-  return null; // 如果没有相邻颜色，返回 null
-}
-
-const clearAllOfColor = (color) => {
-  for (let r = 0; r < numRows; r++) {
-    for (let c = 0; c < numCols; c++) {
-      if (board.value[r][c] === color) board.value[r][c] = null
-    }
+  
+  /**
+   * 重新开始游戏，重置状态并初始化棋盘
+   */
+  const restartGame = () => {
+    clearInterval(timer)
+    saveScoreToLeaderboard() // 保存分数到排行榜
+    score.value = 0
+    timeLeft.value = 60
+    gameOver.value = false
+    comboText.value = ''
+    initBoard()
+    startTimer()
+    setTimeout(() => {
+      processBoard()
+    }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
   }
-}
-
-const clearAdjacent = (r, c) => {
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      const nr = r + dr, nc = c + dc;
+  
+  /* -------------------------- 分数排行榜逻辑 -------------------------- */
+  /**
+   * 保存当前分数到排行榜，并存储到 localStorage
+   */
+  const saveScoreToLeaderboard = () => {
+    const now = new Date()
+    const formattedTime = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const newEntry = { time: formattedTime, score: score.value }
+    const storedLeaderboard = JSON.parse(localStorage.getItem('leaderboard')) || []
+    storedLeaderboard.push(newEntry)
+    storedLeaderboard.sort((a, b) => b.score - a.score) // 按分数降序排序
+    storedLeaderboard.splice(10) // 只保留前 10 名
+    localStorage.setItem('leaderboard', JSON.stringify(storedLeaderboard))
+    leaderboard.value = storedLeaderboard
+  }
+  
+  /**
+   * 加载排行榜数据，从 localStorage 获取
+   */
+  const loadLeaderboard = () => {
+    leaderboard.value = JSON.parse(localStorage.getItem('leaderboard')) || []
+  }
+  
+  /* -------------------------- 定时器 -------------------------- */
+  let timer = null
+  /**
+   * 开始倒计时，时间结束时触发游戏结束
+   */
+  const startTimer = () => {
+    timer = setInterval(() => {
+      if (timeLeft.value > 0) timeLeft.value--
+      else {
+        clearInterval(timer)
+        gameOver.value = true
+      }
+    }, 1000)
+  }
+  
+  /* -------------------------- 消除逻辑 -------------------------- */
+  /**
+   * 判断是否为炸弹方块
+   * @param {any} cell 方块值
+   * @returns {boolean}
+   */
+  const isBomb = (cell) => cell === BOMB
+  
+  /**
+   * 判断是否为彩虹方块
+   * @param {any} cell 方块值
+   * @returns {boolean}
+   */
+  const isRainbow = (cell) => cell === RAINBOW
+  
+  /**
+   * 获取相邻方块的颜色
+   * @param {number} r 行号
+   * @param {number} c 列号
+   * @returns {number|null} 相邻颜色或 null
+   */
+  const getAdjacentColor = (r, c) => {
+    const dirs = [
+      [-1, 0], [1, 0], [0, -1], [0, 1] // 上、下、左、右
+    ]
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr, nc = c + dc
       if (nr >= 0 && nr < numRows && nc >= 0 && nc < numCols) {
-        board.value[nr][nc] = null; // 清除炸弹周围的方块
-        matched.value[nr][nc] = true; // 标记为已匹配
+        const cell = board.value[nr][nc]
+        if (typeof cell === 'number') return cell // 返回相邻的颜色
+      }
+    }
+    return null // 如果没有相邻颜色，返回 null
+  }
+  
+  /**
+   * 清除所有指定颜色的方块
+   * @param {number} color 颜色值
+   */
+  const clearAllOfColor = (color) => {
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols; c++) {
+        if (board.value[r][c] === color) board.value[r][c] = null
       }
     }
   }
-}
-
-const clearMatches = () => {
-  for (let r = 0; r < numRows; r++) {
-    for (let c = 0; c < numCols; c++) {
-      if (matched.value[r][c]) {
-        const cell = board.value[r][c];
-        if (isBomb(cell)) {
-          clearAdjacent(r, c); // 清除炸弹周围的方块
-        } else if (isRainbow(cell)) {
-          const color = getAdjacentColor(r, c); // 获取彩虹方块周围的颜色
-          if (color !== null) {
-            clearAllOfColor(color); // 清除所有相同颜色的方块
-          }
+  
+  /**
+   * 清除炸弹周围的方块
+   * @param {number} r 行号
+   * @param {number} c 列号
+   */
+  const clearAdjacent = (r, c) => {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = r + dr, nc = c + dc
+        if (nr >= 0 && nr < numRows && nc >= 0 && nc < numCols) {
+          board.value[nr][nc] = null // 清除炸弹周围的方块
+          matched.value[nr][nc] = true // 标记为已匹配
         }
-        board.value[r][c] = null; // 清除当前方块
-        score.value += 10; // 增加分数
       }
     }
   }
-}
-
-const collapseBoard = () => {
-  for (let c = 0; c < numCols; c++) {
-    let pointer = numRows - 1
-    for (let r = numRows - 1; r >= 0; r--) {
-      if (board.value[r][c] !== null) {
-        board.value[pointer][c] = board.value[r][c]
-        fallingMap.value[pointer][c] = false
-        pointer--
-      }
-    }
-    for (let r = pointer; r >= 0; r--) {
-      board.value[r][c] = randomCell()
-      fallingMap.value[r][c] = true
-    }
-  }
-}
-
-const findMatches = () => {
-  matched.value = matched.value.map(row => row.map(() => false))
-  let found = false
-  for (let r = 0; r < numRows; r++) {
-    for (let c = 0; c < numCols - 2; c++) {
-      const val = board.value[r][c]
-      if (val === board.value[r][c + 1] && val === board.value[r][c + 2]) {
-        matched.value[r][c] = matched.value[r][c + 1] = matched.value[r][c + 2] = true
-        found = true
+  
+  /**
+   * 清除匹配的方块，并处理特殊方块逻辑
+   */
+  const clearMatches = () => {
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols; c++) {
+        if (matched.value[r][c]) {
+          const cell = board.value[r][c]
+          if (isBomb(cell)) {
+            clearAdjacent(r, c) // 清除炸弹周围的方块
+          } else if (isRainbow(cell)) {
+            const color = getAdjacentColor(r, c) // 获取彩虹方块周围的颜色
+            if (color !== null) {
+              clearAllOfColor(color) // 清除所有相同颜色的方块
+            }
+          }
+          board.value[r][c] = null // 清除当前方块
+          score.value += 10 // 增加分数
+        }
       }
     }
   }
-  for (let c = 0; c < numCols; c++) {
-    for (let r = 0; r < numRows - 2; r++) {
-      const val = board.value[r][c]
-      if (val === board.value[r + 1][c] && val === board.value[r + 2][c]) {
-        matched.value[r][c] = matched.value[r + 1][c] = matched.value[r + 2][c] = true
-        found = true
+  
+  /**
+   * 让方块下落，填补空缺
+   */
+  const collapseBoard = () => {
+    for (let c = 0; c < numCols; c++) {
+      let pointer = numRows - 1
+      for (let r = numRows - 1; r >= 0; r--) {
+        if (board.value[r][c] !== null) {
+          board.value[pointer][c] = board.value[r][c]
+          fallingMap.value[pointer][c] = false
+          pointer--
+        }
+      }
+      for (let r = pointer; r >= 0; r--) {
+        board.value[r][c] = randomCell()
+        fallingMap.value[r][c] = true
       }
     }
   }
-  return found
-}
-
-const processBoard = async () => {
-  comboCount = 0;
-  while (findMatches()) {
-    comboCount++;
-    comboText.value = `Combo x${comboCount}!`;
-    await nextTick();
-    clearMatches();
-    await new Promise(res => setTimeout(res, 300));
-    collapseBoard();
-  }
-  comboText.value = '';
-  console.log('得分:', score.value);
-}
-
-const hasMatch = (grid) => {
-  for (let r = 0; r < numRows; r++) {
-    for (let c = 0; c < numCols - 2; c++) {
-      if (grid[r][c] === grid[r][c + 1] && grid[r][c] === grid[r][c + 2]) return true;
+  
+  /**
+   * 查找棋盘中是否有匹配的方块
+   * @returns {boolean} 是否有匹配
+   */
+  const findMatches = () => {
+    matched.value = matched.value.map(row => row.map(() => false))
+    let found = false
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols - 2; c++) {
+        const val = board.value[r][c]
+        if (val === board.value[r][c + 1] && val === board.value[r][c + 2]) {
+          matched.value[r][c] = matched.value[r][c + 1] = matched.value[r][c + 2] = true
+          found = true
+        }
+      }
     }
-  }
-  for (let c = 0; c < numCols; c++) {
-    for (let r = 0; r < numRows - 2; r++) {
-      if (grid[r][c] === grid[r + 1][c] && grid[r][c] === grid[r + 2][c]) return true;
+    for (let c = 0; c < numCols; c++) {
+      for (let r = 0; r < numRows - 2; r++) {
+        const val = board.value[r][c]
+        if (val === board.value[r + 1][c] && val === board.value[r + 2][c]) {
+          matched.value[r][c] = matched.value[r + 1][c] = matched.value[r + 2][c] = true
+          found = true
+        }
+      }
     }
+    return found
   }
-  return false;
-}
-
-/* -------------------------- 拖拽逻辑 -------------------------- */
-const isAdjacent = ([r1, c1], [r2, c2]) => Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1
-
-const trySwap = (pos1, pos2) => {
-  const copy = board.value.map(row => row.slice())
-  const temp = copy[pos1[0]][pos1[1]]
-  copy[pos1[0]][pos1[1]] = copy[pos2[0]][pos2[1]]
-  copy[pos2[0]][pos2[1]] = temp
-  return copy
-}
-
-const startDrag = (r, c, event) => {
-  if (gameOver.value) return;
-  dragging.value = true;
-  dragStart.value = [r, c];
-  const point = event?.touches?.[0] || event;
-  touchStartPoint.value = { x: point.clientX, y: point.clientY };
-  window.addEventListener('mousemove', handleMouseMove);
-  window.addEventListener('mouseup', resetDrag);
-  window.addEventListener('touchmove', handleTouchMove, { passive: false }); // 添加触控移动事件
-  window.addEventListener('touchend', resetDrag);
-};
-
-const handleTouchMove = (event) => {
-  event.preventDefault(); // 禁用默认滚动行为
-  if (!dragStart.value || !touchStartPoint.value) return;
-  const touch = event.touches[0];
-  const dx = touch.clientX - touchStartPoint.value.x;
-  const dy = touch.clientY - touchStartPoint.value.y;
-  const [r, c] = dragStart.value;
-  if (Math.abs(dx) > 30) endDrag(r, dx > 0 ? c + 1 : c - 1);
-  else if (Math.abs(dy) > 30) endDrag(dy > 0 ? r + 1 : r - 1, c);
-};
-
-const endDrag = (r, c) => {
-  if (!dragStart.value || (dragStart.value[0] === r && dragStart.value[1] === c)) return;
-  if (isAdjacent(dragStart.value, [r, c])) {
-    const swapped = trySwap(dragStart.value, [r, c]);
-    if (hasMatch(swapped)) {
-      board.value = swapped; // 更新棋盘
-      nextTick(() => processBoard()); // 处理消除逻辑
+  
+  /**
+   * 处理棋盘逻辑，包括匹配、清除和下落
+   */
+  const processBoard = async () => {
+    comboCount = 0
+    while (findMatches()) {
+      comboCount++
+      comboText.value = `Combo x${comboCount}!`
+      await nextTick()
+      clearMatches()
+      await new Promise(res => setTimeout(res, 300))
+      collapseBoard()
     }
+    comboText.value = ''
+    console.log('得分:', score.value)
   }
-  resetDrag();
-};
-
-const resetDrag = () => {
-  dragging.value = false;
-  dragStart.value = null;
-  dragOffset.value = { x: 0, y: 0 };
-  touchStartPoint.value = null;
-  window.removeEventListener('mousemove', handleMouseMove);
-  window.removeEventListener('mouseup', resetDrag);
-  window.removeEventListener('touchmove', handleTouchMove); // 移除触控移动事件
-  window.removeEventListener('touchend', resetDrag);
-};
-
-const handleMouseMove = (event) => {
-  if (!dragStart.value || !touchStartPoint.value) return
-  const dx = event.clientX - touchStartPoint.value.x
-  const dy = event.clientY - touchStartPoint.value.y
-  const [r, c] = dragStart.value
-  if (Math.abs(dx) > 30) endDrag(r, dx > 0 ? c + 1 : c - 1)
-  else if (Math.abs(dy) > 30) endDrag(dy > 0 ? r + 1 : r - 1, c)
-}
-
-/* -------------------------- 辅助函数 -------------------------- */
-const randomColor = () => Math.floor(Math.random() * numColors)
-const randomCell = () => {
-  const rnd = Math.random()
-  if (rnd < SPECIAL_CHANCE / 2) return BOMB
-  if (rnd < SPECIAL_CHANCE) return RAINBOW
-  return randomColor()
-}
-
-const getCellColor = (cell) =>
-  cell === BOMB ? '#555' : cell === RAINBOW ? '#ccc' : colors[cell]
-const getCellSymbol = (cell) =>
-  cell === BOMB ? '💣' : cell === RAINBOW ? '🌈' : symbols[cell]
-
-/* -------------------------- 挂载时初始化 -------------------------- */
-onMounted(() => {
-  initBoard()
-  startTimer()
-  loadLeaderboard() // 加载排行榜
-  setTimeout(() => {
-    processBoard()
-  }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
-})
+  
+  /**
+   * 检查棋盘是否有匹配的方块
+   * @param {Array} grid 棋盘数据
+   * @returns {boolean} 是否有匹配
+   */
+  const hasMatch = (grid) => {
+    for (let r = 0; r < numRows; r++) {
+      for (let c = 0; c < numCols - 2; c++) {
+        if (grid[r][c] === grid[r][c + 1] && grid[r][c] === grid[r][c + 2]) return true
+      }
+    }
+    for (let c = 0; c < numCols; c++) {
+      for (let r = 0; r < numRows - 2; r++) {
+        if (grid[r][c] === grid[r + 1][c] && grid[r][c] === grid[r + 2][c]) return true
+      }
+    }
+    return false
+  }
+  
+  /* -------------------------- 拖拽逻辑 -------------------------- */
+  /**
+   * 判断两个位置是否相邻
+   * @param {Array} pos1 第一个位置 [行, 列]
+   * @param {Array} pos2 第二个位置 [行, 列]
+   * @returns {boolean} 是否相邻
+   */
+  const isAdjacent = ([r1, c1], [r2, c2]) => Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1
+  
+  /**
+   * 尝试交换两个位置的方块
+   * @param {Array} pos1 第一个位置 [行, 列]
+   * @param {Array} pos2 第二个位置 [行, 列]
+   * @returns {Array} 交换后的棋盘数据
+   */
+  const trySwap = (pos1, pos2) => {
+    const copy = board.value.map(row => row.slice())
+    const temp = copy[pos1[0]][pos1[1]]
+    copy[pos1[0]][pos1[1]] = copy[pos2[0]][pos2[1]]
+    copy[pos2[0]][pos2[1]] = temp
+    return copy
+  }
+  
+  /**
+   * 开始拖拽方块
+   * @param {number} r 行号
+   * @param {number} c 列号
+   * @param {Event} event 拖拽事件
+   */
+  const startDrag = (r, c, event) => {
+    if (gameOver.value) return
+    dragging.value = true
+    dragStart.value = [r, c]
+    const point = event?.touches?.[0] || event
+    touchStartPoint.value = { x: point.clientX, y: point.clientY }
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', resetDrag)
+    window.addEventListener('touchmove', handleTouchMove, { passive: false }) // 添加触控移动事件
+    window.addEventListener('touchend', resetDrag)
+  }
+  
+  /**
+   * 处理触控移动事件
+   * @param {Event} event 触控事件
+   */
+  const handleTouchMove = (event) => {
+    event.preventDefault() // 禁用默认滚动行为
+    if (!dragStart.value || !touchStartPoint.value) return
+    const touch = event.touches[0]
+    const dx = touch.clientX - touchStartPoint.value.x
+    const dy = touch.clientY - touchStartPoint.value.y
+    const [r, c] = dragStart.value
+    if (Math.abs(dx) > 30) endDrag(r, dx > 0 ? c + 1 : c - 1)
+    else if (Math.abs(dy) > 30) endDrag(dy > 0 ? r + 1 : r - 1, c)
+  }
+  
+  /**
+   * 结束拖拽方块
+   * @param {number} r 行号
+   * @param {number} c 列号
+   */
+  const endDrag = (r, c) => {
+    if (!dragStart.value || (dragStart.value[0] === r && dragStart.value[1] === c)) return
+    if (isAdjacent(dragStart.value, [r, c])) {
+      const swapped = trySwap(dragStart.value, [r, c])
+      if (hasMatch(swapped)) {
+        board.value = swapped // 更新棋盘
+        nextTick(() => processBoard()) // 处理消除逻辑
+      }
+    }
+    resetDrag()
+  }
+  
+  /**
+   * 重置拖拽状态
+   */
+  const resetDrag = () => {
+    dragging.value = false
+    dragStart.value = null
+    dragOffset.value = { x: 0, y: 0 }
+    touchStartPoint.value = null
+    window.removeEventListener('mousemove', handleMouseMove)
+    window.removeEventListener('mouseup', resetDrag)
+    window.removeEventListener('touchmove', handleTouchMove) // 移除触控移动事件
+    window.removeEventListener('touchend', resetDrag)
+  }
+  
+  /**
+   * 处理鼠标移动事件
+   * @param {Event} event 鼠标事件
+   */
+  const handleMouseMove = (event) => {
+    if (!dragStart.value || !touchStartPoint.value) return
+    const dx = event.clientX - touchStartPoint.value.x
+    const dy = event.clientY - touchStartPoint.value.y
+    const [r, c] = dragStart.value
+    if (Math.abs(dx) > 30) endDrag(r, dx > 0 ? c + 1 : c - 1)
+    else if (Math.abs(dy) > 30) endDrag(dy > 0 ? r + 1 : r - 1, c)
+  }
+  
+  /* -------------------------- 辅助函数 -------------------------- */
+  /**
+   * 随机生成颜色索引
+   * @returns {number} 颜色索引
+   */
+  const randomColor = () => Math.floor(Math.random() * numColors)
+  
+  /**
+   * 随机生成方块类型（普通方块、炸弹或彩虹）
+   * @returns {string|number} 方块类型
+   */
+  const randomCell = () => {
+    const rnd = Math.random()
+    if (rnd < SPECIAL_CHANCE / 2) return BOMB
+    if (rnd < SPECIAL_CHANCE) return RAINBOW
+    return randomColor()
+  }
+  
+  /**
+   * 获取方块的背景颜色
+   * @param {string|number} cell 方块值
+   * @returns {string} 背景颜色
+   */
+  const getCellColor = (cell) =>
+    cell === BOMB ? '#555' : cell === RAINBOW ? '#ccc' : colors[cell]
+  
+  /**
+   * 获取方块的符号
+   * @param {string|number} cell 方块值
+   * @returns {string} 方块符号
+   */
+  const getCellSymbol = (cell) =>
+    cell === BOMB ? '💣' : cell === RAINBOW ? '🌈' : symbols[cell]
+  
+  /* -------------------------- 挂载时初始化 -------------------------- */
+  /**
+   * 组件挂载时初始化棋盘、定时器和排行榜
+   */
+  onMounted(() => {
+    initBoard()
+    startTimer()
+    loadLeaderboard() // 加载排行榜
+    setTimeout(() => {
+      processBoard()
+    }, 500) // 延迟处理消除逻辑，确保棋盘渲染完成
+  })
 </script>
 
 <style scoped>
@@ -722,4 +837,4 @@ onMounted(() => {
       font-size: 18px;
     }
   }
-  </style>
+</style>
