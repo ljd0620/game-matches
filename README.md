@@ -39,7 +39,7 @@ e:\VSCodeProjects\game-matches
 ## 安装与运行
 1. 克隆仓库：
    ```bash
-   git clone URL_ADDRESS   git clone https://github.com/yourusername/game-matches.git
+   git clone https://github.com/yourusername/game-matches.git
    cd game-matches
    ```
 2. 安装依赖：
