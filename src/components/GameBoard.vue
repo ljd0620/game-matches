@@ -64,7 +64,7 @@ const board = ref([])
 const matched = ref([])
 const fallingMap = ref([])
 const score = ref(0)
-const timeLeft = ref(60)
+const timeLeft = ref(120)
 const gameOver = ref(false)
 const comboText = ref('')
 let comboCount = 0
@@ -190,7 +190,7 @@ const findMatches = () => {
   for (let r = 0; r < numRows; r++) {
     for (let c = 0; c < numCols - 2; c++) {
       const val = board.value[r][c]
-      if (typeof val === 'number' && val === board.value[r][c + 1] && val === board.value[r][c + 2]) {
+      if (val === board.value[r][c + 1] && val === board.value[r][c + 2]) {
         matched.value[r][c] = matched.value[r][c + 1] = matched.value[r][c + 2] = true
         found = true
       }
@@ -199,7 +199,7 @@ const findMatches = () => {
   for (let c = 0; c < numCols; c++) {
     for (let r = 0; r < numRows - 2; r++) {
       const val = board.value[r][c]
-      if (typeof val === 'number' && val === board.value[r + 1][c] && val === board.value[r + 2][c]) {
+      if (val === board.value[r + 1][c] && val === board.value[r + 2][c]) {
         matched.value[r][c] = matched.value[r + 1][c] = matched.value[r + 2][c] = true
         found = true
       }
