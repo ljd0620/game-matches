@@ -50,7 +50,7 @@
 
     <!-- 分数排行榜 -->
     <div class="leaderboard">
-      <h3>分数排行榜</h3>
+      <h3>排行榜</h3>
       <ul>
         <li v-for="(entry, index) in leaderboard" :key="index">
           <span class="time">{{ entry.time }}</span>
@@ -706,7 +706,7 @@
   .leaderboard {
     min-height: 100px;
     margin-top: 20px;
-    padding: 20px;
+    padding: 1px 20px;
     background: linear-gradient(135deg, #f8f9fa, #e9ecef);
     border-radius: 16px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
