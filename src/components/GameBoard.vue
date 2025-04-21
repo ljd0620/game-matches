@@ -43,6 +43,7 @@
     <div v-if="gameOver" class="game-over-overlay">
       <div class="game-over-content">
         <div class="game-over">很遗憾！游戏结束！</div>
+        <div class="final-score">您的得分：{{ score }}</div> <!-- 显示分数 -->
         <button @click="restartGame">重新开始</button>
       </div>
     </div>
@@ -61,8 +62,18 @@
 </template>
 
 <script setup>
-  import { ref, onMounted, nextTick } from 'vue'
-  
+
+  /* -------------------------- 引入依赖 -------------------------- */
+  import { ref, onMounted, nextTick, defineProps } from 'vue'
+
+  /* -------------------------- 接收父组件参数 -------------------------- */
+  const props = defineProps({
+    isAudioEnabled: {
+      type: Boolean,
+      required: true,
+    },
+  });
+
   /* -------------------------- 常量定义 -------------------------- */
   const numRows = 6 // 棋盘行数
   const numCols = 6 // 棋盘列数
@@ -88,12 +99,33 @@
   const dragStart = ref(null) // 拖拽起始位置
   const dragOffset = ref({ x: 0, y: 0 }) // 拖拽偏移量
   const touchStartPoint = ref(null) // 触控起始点
+
+  /* -------------------------- 音效定义 -------------------------- */
+  const startSound = new Audio('/sounds/start.wav') // 游戏开始音效
+  const matchSound = new Audio('/sounds/match.wav') // 方块消除音效
+  const comboSound = new Audio('/sounds/combo.wav') // 连击音效
+  const gameOverSound = new Audio('/sounds/gameover.wav') // 游戏结束音效
+
+  /* -------------------------- 播放音效函数 -------------------------- */
+  /**
+   * 播放音效
+   * @param {Audio} sound 音效对象
+   */
+  const playSound = (sound) => {
+    console.log(props.isAudioEnabled); // 打印音效开关状态
+    if (!props.isAudioEnabled) return; // 检查音效是否开启
+    sound.currentTime = 0; // 重置音效播放时间
+    sound.play().catch((error) => {
+      console.error('音效播放失败:', error);
+    });
+  };
   
   /* -------------------------- 初始化 -------------------------- */
   /**
    * 初始化棋盘，生成随机棋盘数据，确保有可匹配的方块
    */
   const initBoard = () => {
+    playSound(startSound); // 播放开始音效
     do {
       board.value = Array.from({ length: numRows }, () =>
         Array.from({ length: numCols }, () => randomCell())
@@ -154,6 +186,7 @@
       else {
         clearInterval(timer)
         gameOver.value = true
+        playSound(gameOverSound); // 播放游戏结束音效
       }
     }, 1000)
   }
@@ -300,14 +333,18 @@
     comboCount = 0
     while (findMatches()) {
       comboCount++
-      comboText.value = `Combo x${comboCount}!`
+      if (comboCount > 1) {
+        comboText.value = `Combo x${comboCount}!`
+        playSound(comboSound) // 播放连击音效
+      } else {
+        playSound(matchSound) // 播放匹配音效
+      }
       await nextTick()
       clearMatches()
       await new Promise(res => setTimeout(res, 300))
       collapseBoard()
     }
     comboText.value = ''
-    console.log('得分:', score.value)
   }
   
   /**
@@ -751,10 +788,18 @@
   }
 
   .game-over {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: bold;
-    margin-bottom: 40px;
+    margin-bottom: 20px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* 添加文字阴影 */
+  }
+
+  .final-score {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #ffeb3b; /* 使用醒目的黄色 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 添加文字阴影 */
   }
 
   /* 按钮样式 */
